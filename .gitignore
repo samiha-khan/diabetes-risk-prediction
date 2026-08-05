@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+models/*.pkl
+catboost_info/
+.venv/
+.claude/
