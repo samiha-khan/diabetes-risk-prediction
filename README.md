@@ -10,7 +10,7 @@ on top to phrase it in plain language.
 
 The dataset is ~91.5% non-diabetic. A model that predicts "no diabetes"
 for everyone scores 91.5% accuracy and catches zero real cases. So
-accuracy isn't the metric that matters here — the real questions are how
+accuracy isn't the metric that matters here. The real questions are how
 you evaluate this honestly under that imbalance, where you set the
 threshold when missing a diabetic is worse than a false alarm, and how
 you explain a stacking ensemble's output to someone who isn't reading a
@@ -20,7 +20,7 @@ SHAP plot.
 
 Earlier version tuned ensemble weights and the decision threshold by
 grid-searching for whatever maximized accuracy on the test set. That's
-leakage — the "test" numbers weren't a real generalization estimate,
+leakage. The "test" numbers weren't a real generalization estimate,
 because model selection had already seen that exact data.
 
 Fixed with a proper split: train models on 70%, tune weights/threshold on
@@ -29,7 +29,7 @@ and never touch it again. There's a regression test for this
 (`test_encoders_are_fit_on_train_only_not_full_data`) so it can't quietly
 come back.
 
-For what it's worth, fixing it barely moved the number — 96.0% claimed
+For what it's worth, fixing it barely moved the number: 96.0% claimed
 accuracy vs. 95.8% honest accuracy. Dataset's big enough that the leakage
 didn't do much damage in practice. Still wrong to do it, and now it's
 actually fixed instead of just less-bad.
@@ -47,6 +47,8 @@ Brier     0.034
 Confusion matrix:  TN=13381  FP=342  FN=281  TP=994
 Missed 281 of 1,275 true diabetic cases (22%)
 ```
+
+![Confusion matrix](reports/figures/confusion_matrix.png)
 
 The 22% miss rate is the number I'd lead with, not accuracy. Threshold is
 currently set to the F1-optimal point on validation; `src/train.py` has
@@ -66,15 +68,23 @@ Reporting it either way.
 ## SHAP + LLM explanations
 
 SHAP gives feature attributions as numbers. The LLM layer (`src/explain.py`)
-turns a given patient's SHAP output into a sentence — it only ever sees
-the SHAP values, never raw patient data, so it can't invent a diagnosis
-that isn't backed by an actual attribution.
+turns a given patient's SHAP output into a sentence. It only ever sees
+the SHAP values, never raw patient data. It summarizes the attributions
+it's given rather than making an independent prediction; that scopes what
+it can say, though it's still a model call, so the wording itself isn't
+guaranteed to be perfect even when the underlying numbers are.
+
+![SHAP summary](reports/figures/shap_summary.png)
+
+HbA1c and blood glucose dominate, which matches how these are actually
+diagnosed clinically. No surprises there, which is itself a reasonable
+sanity check on the model.
 
 ```
-TRUE POSITIVE — risk 100%, actual: diabetic
+TRUE POSITIVE (risk 100%, actual: diabetic)
 HbA1c level, age×BMI interaction, and age pushed risk up.
 
-FALSE NEGATIVE — risk 20.2%, actual: diabetic
+FALSE NEGATIVE (risk 20.2%, actual: diabetic)
 HbA1c and glucose pushed risk down; age×BMI pushed it up. Model missed
 this one on the two strongest lab features not flagging despite the
 true outcome being diabetic.
@@ -115,7 +125,7 @@ the template.
 
 ## Limitations
 
-- Dataset's synthetic (Kaggle), not real clinical records — real-world
+- Dataset's synthetic (Kaggle), not real clinical records. Real-world
   noise and missingness would likely hurt these numbers.
 - Screening aid, not diagnosis. 22% miss rate matters in a real clinical
   setting; threshold should get set by whoever owns that tradeoff, not
@@ -124,5 +134,5 @@ the template.
   enough samples to say anything reliable (dropped ~18 rows labeled
   "Other" for that reason). Doesn't cover other attributes.
 - LLM explanation is constrained to the SHAP numbers it's given, but it's
-  still a model call — template fallback exists partly because a demo
+  still a model call. The template fallback exists partly because a demo
   shouldn't depend on an API being up.
