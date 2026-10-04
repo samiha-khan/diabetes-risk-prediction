@@ -123,6 +123,54 @@ PYTHONPATH=. python -m src.demo_explain
 Set `ANTHROPIC_API_KEY` for LLM-phrased explanations, otherwise it uses
 the template.
 
+## How this compares to published results
+
+A true apples-to-apples external validation (same model, a different real
+dataset) isn't possible here without retraining: this project's features
+(gender, age, hypertension, heart disease, smoking history, BMI, HbA1c,
+blood glucose) are specific to this one Kaggle dataset, and no other
+public diabetes dataset shares that exact schema. What's possible instead,
+and genuinely useful, is checking this project's 0.977 ROC-AUC against
+published results on related diabetes-classification problems:
+
+| Study | Dataset | Model | Accuracy | AUC | Precision | Recall |
+|---|---|---|---|---|---|---|
+| This project | Kaggle, ~100K rows, clinical features | LightGBM+XGBoost+CatBoost stacking | 95.8% | 0.977 | 0.744 | 0.780 |
+| [Li, Peng & Peng, 2024, *PLOS ONE*](https://doi.org/10.1371/journal.pone.0311222) | CDC BRFSS 2021 survey, 25 of 303 features | GA-XGBoost + LightGBM stacking | 94.86% | 0.989 | 0.965 | 0.952 |
+| [arXiv:2501.18071](https://arxiv.org/abs/2501.18071) | Diabetes Binary Health Indicators (BRFSS-derived) | Ensemble + SMOTE | 92.50% | 0.975 | - | - |
+| [Rahman, Hossain, Tiang & Nahid, 2025, *Diagnostics* 15(20):2622](https://doi.org/10.3390/diagnostics15202622) | Pima Indians (768 rows, 8 features) | LightGBM + Boruta feature selection | 85.16% | 0.905 | 0.840 | 0.868 |
+
+None of these three studies use this project's exact dataset or feature
+set, so this isn't a controlled comparison, just the honest context
+available: a 2024 BRFSS stacking-ensemble study (methodologically close to
+this project, also a boosting stack) reports higher precision and recall
+on its own data, this project's ROC-AUC sits right in the range of the two
+other BRFSS-adjacent studies (0.975, 0.989), and this project's model
+clears the classic, much smaller Pima Indians benchmark on every metric.
+That last comparison matters least, since 768 rows is a different scale
+problem entirely, but it's the most commonly cited diabetes-ML benchmark,
+so it's included for that reason.
+
+I also found a paper reporting results on what looks like the exact same
+dataset (96,146 rows after cleaning, same feature list), but could not
+retrieve its exact numbers: the primary source is paywalled on
+ResearchGate and a related open-access PDF I found didn't extract to
+readable text. Noting the gap rather than guessing at a number to fill it.
+
+One honest asymmetry worth naming: the BRFSS-based studies above report
+notably higher precision and recall (0.95+/0.95+) than this project
+(0.744/0.780) despite similar or lower AUC. That's a real signal worth
+investigating before claiming parity, not just a methodology footnote to
+skim past. The most likely cause is threshold choice, not model quality:
+this project's threshold is tuned to the F1-optimal point (`src/train.py`),
+which trades recall for precision in a way a study optimizing for a
+different operating point wouldn't. It could also reflect real differences
+in how cleanly BRFSS's self-reported survey labels separate from this
+project's lab-value-based labels. Both are plausible from the numbers
+alone; distinguishing them would need the other papers' precision/recall
+curves, not just their reported single operating point, which none of the
+three papers published.
+
 ## Limitations
 
 - Dataset's synthetic (Kaggle), not real clinical records. Real-world
